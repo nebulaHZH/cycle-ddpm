@@ -3,35 +3,21 @@ from typing import NamedTuple
 import torch
 
 class Configs(NamedTuple):
-    # 项目名称
-    proj_name: str
-    # 学习率
-    lr: float
-    # 批次大小
-    batch: int
-    # 设备
-    device: torch.device
-    # 训练周期
-    epochs: int
-    # 保存周期
-    save_period: int
-    # 样本周期
-    sample_period: int
-    # 训练时间步数
-    num_train_timesteps: int
-    # 推理时间步数
-    num_inference_timesteps: int
-    # beta起始值
-    beta_start: float
-    # beta结束值
-    beta_end: float
-    # 图像尺寸
-    clip: float
-    data_path: str
-    
-    num_classes: int
-
-    # 图像部分
-    ch_input: int = 1
+    """配置类基类"""
+    proj_name: str = "test"
+    lr: float = 2e-5  # 降低学习率
+    batch: int = 2  # 减小批量大小
+    epochs: int = 100  # 增加训练轮数
+    save_period: int = 10
+    sample_period: int = 10
+    clip: float = 1.0
+    num_train_timesteps: int = 2000
+    num_inference_timesteps: int = 200
+    beta_start: float = 0.0001
+    beta_end: float = 0.005
+    data_path: str = "D:\\0-nebula\\dataset\\Havard\\MyDatasets\\CT-MRI\\train\\MRI"
     image_size: int = 256
-    
+    num_classes: int = 2
+    ch_input: int = 1
+    device: torch.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    current_epoch: int = 0  # 添加当前epoch记录
