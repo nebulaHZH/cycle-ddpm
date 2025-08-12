@@ -106,15 +106,14 @@ class CycleDDPM(nn.Module):
             x_B_reconstructed = self.generate_mri(x_A_pred)
 
             images = torch.cat([x_A, x_B_pred, x_A_reconstructed, x_B, x_A_pred, x_B_reconstructed], dim=0)
-            disply_images(images, row_num=3, title="cycle_loss_generate_display",
-                          save_dir='D:\\0-nebula\\dataset\\results')
+            disply_images(images, row_num=3, title="cycle_loss_generate_display",save_dir='D:\\0-nebula\\dataset\\results')
         # 计算一致性损失
         cycle_loss_A = F.l1_loss(x_A, x_A_reconstructed)
         cycle_loss_B = F.l1_loss(x_B, x_B_reconstructed)
 
         return cycle_loss_A + cycle_loss_B
 
-    def compute_loss(self, x_A: Tensor, x_B: Tensor, lambda_cycle: float = 1.0) -> dict[str, Tensor]:
+    def compute_loss(self, x_A: Tensor, x_B: Tensor, lambda_cycle: float = 0.1) -> dict[str, Tensor]:
         """计算损失,其中输入的x_A是ct图像，x_B是mri图像"""
         batch_size = x_A.shape[0]
         timesteps = self.scheduler.sample_timesteps(batch_size)

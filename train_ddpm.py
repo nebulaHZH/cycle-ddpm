@@ -73,7 +73,7 @@ for epoch in range(config.epochs):
         real_A = batch_A.to(config.device)  # CT图像
         real_B = batch_B.to(config.device)  # MRI图像
         if epoch > config.epochs // 2:
-            loss = model.compute_loss(real_A, real_B,1.0)
+            loss = model.compute_loss(real_A, real_B,0.1)
         else:
             loss = model.compute_loss(real_A, real_B,0)
         loss['loss'].backward()
