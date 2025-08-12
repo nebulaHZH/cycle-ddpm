@@ -14,7 +14,7 @@ config = CycleConfig(
     image_size=256,
     num_classes=2,
     batch=1,
-    epochs=10,
+    epochs=200,
     lr=1e-4,
     save_period=10,
     proj_name="test",
@@ -50,8 +50,8 @@ scheduler_lr = CosineAnnealingLR(optimizer, T_max=config.epochs)
 #data_loader_B = DataLoader(dataset_B, batch_size=config.batch, shuffle=False)
 
 paired_dataset = PairedImageDataset(
-    dir_A='D:/0-nebula/dataset/ixi_paried/t1_resized',
-    dir_B='D:/0-nebula/dataset/ixi_paried/t2_resized',
+    dir_A='D:/0-nebula/dataset/ixi_paried/t1_30_resized',
+    dir_B='D:/0-nebula/dataset/ixi_paried/t2_30_resized',
 )
 
 
