@@ -35,8 +35,8 @@ def ct_to_mri_generation(model:CycleDDPM, ct_image_path:str, scheduler:DDPMSched
     images = torch.concat([images, res],dim=0)
     images = torch.concat([images, origin_image],dim=0)
     # 后处理：转换回[0, 255]范围
-    # images = (images + 1) / 2
-    # images = torch.clamp(images, 0, 1)
+    images = (images + 1) / 2
+    images = torch.clamp(images, 0, 1)
     disply_images(images=images,row_num=3, title="origin(left),generate(mid),label(right)")
     return images
 
@@ -50,7 +50,7 @@ config = train_ddpm.config
 model = CycleDDPM(config).to(config.device)
 scheduler = DDPMScheduler(config)
 
-checkpoint_path = r"D:\\0-nebula\\dataset\\checkpoints\\20"  # 假设你想加载第100轮的模型
+checkpoint_path = r"D:\\0-nebula\\dataset\\checkpoints\\200"  # 假设你想加载第100轮的模型
 checkpoint = torch.load(checkpoint_path, map_location=config.device)
 
 model.load_state_dict(checkpoint['model_state_dict'])

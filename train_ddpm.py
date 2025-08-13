@@ -11,7 +11,7 @@ config = Configs(
     dir_b_path="D:/0-nebula/dataset/ixi_paried/t2_30_resized",
     image_size=256,
     batch=1,
-    epochs=20,
+    epochs=40,
     lr=1e-4,
     clip=1.0,
     num_train_timesteps=1000,
@@ -46,7 +46,7 @@ if __name__ == "__main__":
             real_A = batch_A.to(config.device)  # CT图像
             real_B = batch_B.to(config.device)  # MRI图像
             if epoch >= config.epochs * 3 // 4:
-                loss = model.compute_loss(real_A, real_B,0.1,epoch,config.epochs)
+                loss = model.compute_loss(real_A, real_B,1,epoch,config.epochs)
             else:
                 loss = model.compute_loss(real_A, real_B,0,epoch)
             loss['loss'].backward()
