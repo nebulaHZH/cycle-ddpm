@@ -1,9 +1,11 @@
 import numpy as np
 import train_ddpm
+import torch.nn.functional as F
 from cycle_ddpm import CycleDDPM
 from PIL import Image
 from plot import  disply_images
 from scheduler import DDPMScheduler
+
 
 def ct_to_mri_generation(model:CycleDDPM, ct_image_path:str, scheduler:DDPMScheduler,original_image_path:str):
     """使用训练好的CycleDDPM模型将CT图像转换为MRI图像"""
@@ -29,13 +31,12 @@ def ct_to_mri_generation(model:CycleDDPM, ct_image_path:str, scheduler:DDPMSched
     origin_tensor = (origin_tensor / 127.5) - 1
     images =  ct_tensor
     origin_image = origin_tensor
-
-    images = torch.concat([images, model.generate_mri_with_grad(images)],dim=0)
+    res = model.generate_mri_with_grad(images)
+    images = torch.concat([images, res],dim=0)
     images = torch.concat([images, origin_image],dim=0)
     # 后处理：转换回[0, 255]范围
-    images = (images + 1) / 2
+    # images = (images + 1) / 2
     # images = torch.clamp(images, 0, 1)
-    # images = (images * 255).type(torch.uint8)
     disply_images(images=images,row_num=3, title="origin(left),generate(mid),label(right)")
     return images
 

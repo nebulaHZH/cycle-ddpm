@@ -122,17 +122,15 @@ class CycleDDPM(nn.Module):
         x = torch.rand_like(mri_image).requires_grad_(True)
         timesteps = self.scheduler.set_timesteps()
         for t in timesteps:
-            t_batch = torch.full((mri_image.size(0),), t.item(), device=mri_image.device, dtype=torch.long)
-            predicted_noise = cp.checkpoint(self.predict_noise_ct, x, t_batch, mri_image,use_reentrant=False)
-            x = self.scheduler.step(predicted_noise, t_batch, x)
+            predicted_noise = cp.checkpoint(self.predict_noise_ct, x, t[None].to(device=mri_image.device), mri_image,use_reentrant=False)
+            x = self.scheduler.step(predicted_noise, t, x)
         return x
     def generate_mri_with_grad(self, ct_image):
         x = torch.rand_like(ct_image).requires_grad_(True)
-        timesteps = self.scheduler.set_timesteps()
+        timesteps = self.scheduler.inf_timesteps
         for t in timesteps:
-            t_batch = torch.full((ct_image.size(0),), t.item(), device=ct_image.device, dtype=torch.long)
-            predicted_noise = cp.checkpoint(self.predict_noise_mri, x, t_batch, ct_image,use_reentrant=False)
-            x = self.scheduler.step(predicted_noise, t_batch, x)
+            predicted_noise = cp.checkpoint(self.predict_noise_mri, x, t[None].to(device=ct_image.device), ct_image,use_reentrant=False)
+            x = self.scheduler.step(predicted_noise, t, x)
 
         return x
 
@@ -173,7 +171,7 @@ class CycleDDPM(nn.Module):
         # 计算灰度损失
         return cycle_loss_A + cycle_loss_B + lambda_gray*(gray_loss_A + gray_loss_B)
         # return cycle_loss_A
-    def compute_loss(self, x_A: Tensor, x_B: Tensor, lambda_cycle: float = 0.1,epoch:int = 200,epochs:int=400) -> dict[str, Tensor]:
+    def compute_loss(self, x_A: Tensor, x_B: Tensor, lambda_cycle: float = 1,epoch:int = 200,epochs:int=400) -> dict[str, Tensor]:
         """计算损失,其中输入的x_A是ct图像，x_B是mri图像"""
         batch_size = x_A.shape[0]
         timesteps = self.scheduler.sample_timesteps(batch_size)
