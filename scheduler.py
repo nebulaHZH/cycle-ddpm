@@ -3,7 +3,7 @@ from config import Configs
 import numpy
 
 class Scheduler:
-    '''基础的diffusion model 过程'''
+    """基础的diffusion model 过程"""
     def __init__(self, config:Configs) -> None:
         self.config = config
 
