@@ -45,7 +45,7 @@ if __name__ == "__main__":
             batch_A,batch_B = batch_data # 从配对数据中解包
             real_A = batch_A.to(config.device)  # CT图像
             real_B = batch_B.to(config.device)  # MRI图像
-            if epoch >= config.epochs // 2 :
+            if epoch >= config.epochs * 3 // 4:
                 loss = model.compute_loss(real_A, real_B,0.1,epoch,config.epochs)
             else:
                 loss = model.compute_loss(real_A, real_B,0,epoch)

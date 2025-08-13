@@ -196,7 +196,7 @@ class CycleDDPM(nn.Module):
         loss_B = F.mse_loss(noise_ct, predicted_noise_ct)
 
         # 计算循环一致性损失
-        if epoch >= epochs // 2 :
+        if epoch >= epochs * 3 // 4 :
             cycle_loss = self.cycle_consistency_loss(x_A, x_B)
             total_loss = loss_A + loss_B + lambda_cycle * cycle_loss
         else:
