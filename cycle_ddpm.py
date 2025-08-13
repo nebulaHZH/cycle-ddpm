@@ -136,7 +136,23 @@ class CycleDDPM(nn.Module):
 
         return x
 
-    def cycle_consistency_loss(self, x_A: Tensor, x_B: Tensor) -> Tensor:
+    def gray_scale_consistency_loss(self, generated_img, target_img):
+        """
+        计算灰度分布一致性损失
+        """
+        # 计算图像的均值和标准差
+        gen_mean = torch.mean(generated_img, dim=[2, 3], keepdim=True)
+        gen_std = torch.std(generated_img, dim=[2, 3], keepdim=True)
+
+        target_mean = torch.mean(target_img, dim=[2, 3], keepdim=True)
+        target_std = torch.std(target_img, dim=[2, 3], keepdim=True)
+
+        # 分布一致性损失
+        mean_loss = F.mse_loss(gen_mean, target_mean)
+        std_loss = F.mse_loss(gen_std, target_std)
+
+        return mean_loss + std_loss
+    def cycle_consistency_loss(self, x_A: Tensor, x_B: Tensor,lambda_gray: float = 1) -> Tensor:
         """计算循环一致性损失"""
         # with torch.no_grad():
         # ct -> mri -> ct
@@ -152,8 +168,10 @@ class CycleDDPM(nn.Module):
         # 计算一致性损失
         cycle_loss_A = F.l1_loss(x_A, x_A_reconstructed)
         cycle_loss_B = F.l1_loss(x_B, x_B_reconstructed)
-
-        return cycle_loss_A + cycle_loss_B
+        gray_loss_A = self.gray_scale_consistency_loss(x_B_pred, x_B)  # MRI生成的灰度一致性
+        gray_loss_B = self.gray_scale_consistency_loss(x_A_pred, x_A)  # CT生成的灰度一致性
+        # 计算灰度损失
+        return cycle_loss_A + cycle_loss_B + lambda_gray*(gray_loss_A + gray_loss_B)
         # return cycle_loss_A
     def compute_loss(self, x_A: Tensor, x_B: Tensor, lambda_cycle: float = 0.1,epoch:int = 200,epochs:int=400) -> dict[str, Tensor]:
         """计算损失,其中输入的x_A是ct图像，x_B是mri图像"""
