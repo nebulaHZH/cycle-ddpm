@@ -73,7 +73,7 @@ class DDPMScheduler(Scheduler):
     def __init__(self, config:Configs) -> None:
         super().__init__(config)
 
-    def step(self, noise_pred: torch.Tensor, timestep: torch.Tensor, noisy_image: torch.Tensor):
+    def step(self, noise_pred: torch.Tensor, timestep: torch.Tensor, noisy_image: torch.Tensor, is_inference: bool = False):
         # 计算前一时刻的时间步
         prev_t = self.prev_timestep(timestep)
 
@@ -103,13 +103,12 @@ class DDPMScheduler(Scheduler):
         current_sample_coeff = torch.sqrt(current_alpha_t) * beta_bar_at_prev_t / beta_bar_at_t
         pred_prev_image = pred_original_sample_coeff * denoised_image + current_sample_coeff * noisy_image
 
-        # 加入噪声 σ_t z
-        # 其中, σ_t^2 = ( 1-α_bar_(t-1)/1-α_bar_t ) β_t
+        # 只在训练时添加噪声，推理时不添加
         variance = 0
-        if timestep > 0:
+        if not is_inference and timestep > 0:
             z = torch.randn(noise_pred.shape).to(device=self.config.device)
             variance = (1 - alpha_bar_at_prev_t) / (1 - alpha_bar_at_t) * current_beta_t
             variance = torch.clamp(variance, min=1e-20)
             variance = torch.sqrt(variance) * z
-
+        
         return pred_prev_image + variance

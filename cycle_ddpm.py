@@ -123,14 +123,14 @@ class CycleDDPM(nn.Module):
         timesteps = self.scheduler.set_timesteps()
         for t in timesteps:
             predicted_noise = cp.checkpoint(self.predict_noise_ct, x, t[None].to(device=mri_image.device), mri_image,use_reentrant=False)
-            x = self.scheduler.step(predicted_noise, t, x)
+            x = self.scheduler.step(predicted_noise, t, x,is_inference=True)
         return x
     def generate_mri_with_grad(self, ct_image):
         x = torch.rand_like(ct_image).requires_grad_(True)
         timesteps = self.scheduler.inf_timesteps
         for t in timesteps:
             predicted_noise = cp.checkpoint(self.predict_noise_mri, x, t[None].to(device=ct_image.device), ct_image,use_reentrant=False)
-            x = self.scheduler.step(predicted_noise, t, x)
+            x = self.scheduler.step(predicted_noise, t, x,is_inference=True)
 
         return x
 
