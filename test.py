@@ -31,7 +31,7 @@ def ct_to_mri_generation(model:CycleDDPM, ct_image_path:str, scheduler:DDPMSched
     origin_tensor = (origin_tensor / 127.5) - 1
     images =  ct_tensor
     origin_image = origin_tensor
-    res = model.generate_mri_with_grad(images)
+    res = model.generate_mri_with_grad(images,is_inference=True)
     images = torch.concat([images, res],dim=0)
     images = torch.concat([images, origin_image],dim=0)
     # 后处理：转换回[0, 255]范围
