@@ -54,7 +54,7 @@ class CycleDDPM(nn.Module):
 
     def generate_ct(self, mri_image: Tensor) -> Tensor:
         """生成CT图像 (输入:MRI图像,输出:CT图像)"""
-        x = torch.rand_like(mri_image).to(device=mri_image.device)  # 初始随机噪声
+        x = torch.randn_like(mri_image).to(device=mri_image.device)  # 初始随机噪声
 
         # 获取时间步序列（从T到1）
         timesteps = self.scheduler.set_timesteps()
@@ -72,7 +72,7 @@ class CycleDDPM(nn.Module):
 
     def generate_mri(self, ct_image: Tensor) -> Tensor:
         """生成MRI图像(输入:CT图像,输出:MRI图像)"""
-        x = torch.rand_like(ct_image).to(device=ct_image.device)  # 初始随机噪声
+        x = torch.randn_like(ct_image).to(device=ct_image.device)  # 初始随机噪声
 
         # 获取时间步序列（从T到1）
         timesteps = self.scheduler.set_timesteps()
@@ -89,7 +89,7 @@ class CycleDDPM(nn.Module):
         return x
     def generate_ct_partial_grad(self, mri_image: Tensor, K:int=1):
         """循环一致性损失计算时，只误差逆传播最后K步"""
-        x = torch.rand_like(mri_image)
+        x = torch.randn_like(mri_image)
         timesteps = self.scheduler.set_timesteps()
         for i, t in enumerate(timesteps):
             t_batch = torch.full((mri_image.size(0),), t.item(), device=mri_image.device, dtype=torch.long)
@@ -103,7 +103,7 @@ class CycleDDPM(nn.Module):
 
     def generate_mri_partial_grad(self, ct_image: Tensor, K:int=10):
         """循环一致性损失计算时，只误差逆传播最后K步"""
-        x = torch.rand_like(ct_image)
+        x = torch.randn_like(ct_image)
         timesteps = self.scheduler.set_timesteps()
         for i, t in enumerate(timesteps):
             t_batch = torch.full((ct_image.size(0),), t.item(), device=ct_image.device, dtype=torch.long)
@@ -119,14 +119,14 @@ class CycleDDPM(nn.Module):
         """
         使用 梯度检查点（torch.utils.checkpoint）在每个时间步节省显存，只在需要的时候重新计算前向。配合 混合精度训练（amp.autocast）减少显存开销。
         """
-        x = torch.rand_like(mri_image).requires_grad_(True)
+        x = torch.randn_like(mri_image).requires_grad_(True)
         timesteps = self.scheduler.set_timesteps()
         for t in timesteps:
             predicted_noise = cp.checkpoint(self.predict_noise_ct, x, t[None].to(device=mri_image.device), mri_image,use_reentrant=False)
             x = self.scheduler.step(predicted_noise, t, x,is_inference=is_inference) # type:ignore
         return x
     def generate_mri_with_grad(self, ct_image,is_inference=False):
-        x = torch.rand_like(ct_image).requires_grad_(True)
+        x = torch.randn_like(ct_image).requires_grad_(True)
         timesteps = self.scheduler.inf_timesteps
         for t in timesteps:
             predicted_noise = cp.checkpoint(self.predict_noise_mri, x, t[None].to(device=ct_image.device), ct_image,use_reentrant=False)
@@ -154,15 +154,15 @@ class CycleDDPM(nn.Module):
         """计算循环一致性损失"""
         # with torch.no_grad():
         # ct -> mri -> ct
-        x_B_pred = self.generate_mri_with_grad(x_A,is_inference=True)
-        x_A_reconstructed = self.generate_ct_with_grad(x_B_pred,is_inference=True)
+        x_B_pred = self.generate_mri_with_grad(x_A)
+        x_A_reconstructed = self.generate_ct_with_grad(x_B_pred)
 
         # mri -> ct -> mri
-        x_A_pred = self.generate_ct_with_grad(x_B,is_inference=True)
-        x_B_reconstructed = self.generate_mri_with_grad(x_A_pred,is_inference=True)
-        with torch.no_grad():
-            images = torch.cat([x_A, x_B_pred, x_A_reconstructed, x_B, x_A_pred, x_B_reconstructed], dim=0)
-            disply_images(images, row_num=3, title="cycle_loss_generate_display",save_dir='D:\\0-nebula\\dataset\\results')
+        x_A_pred = self.generate_ct_with_grad(x_B)
+        x_B_reconstructed = self.generate_mri_with_grad(x_A_pred)
+        # with torch.no_grad():
+        #     images = torch.cat([x_A, x_B_pred, x_A_reconstructed, x_B, x_A_pred, x_B_reconstructed], dim=0)
+        #     disply_images(images, row_num=3, title="cycle_loss_generate_display",save_dir='D:\\0-nebula\\dataset\\results')
         # 计算一致性损失
         cycle_loss_A = F.l1_loss(x_A, x_A_reconstructed)
         cycle_loss_B = F.l1_loss(x_B, x_B_reconstructed)

@@ -31,7 +31,7 @@ def ct_to_mri_generation(model:CycleDDPM, ct_image_path:str, scheduler:DDPMSched
     origin_tensor = (origin_tensor / 127.5) - 1
     images =  ct_tensor
     origin_image = origin_tensor
-    res = model.generate_mri_with_grad(images,is_inference=True)
+    res = model.generate_ct_with_grad(images,is_inference=True)
     images = torch.concat([images, res],dim=0)
     images = torch.concat([images, origin_image],dim=0)
     # 后处理：转换回[0, 255]范围
@@ -50,7 +50,7 @@ config = train_ddpm.config
 model = CycleDDPM(config).to(config.device)
 scheduler = DDPMScheduler(config)
 
-checkpoint_path = r"D:\\0-nebula\\dataset\\checkpoints\\20"  # 假设你想加载第100轮的模型
+checkpoint_path = r"E:\\nebula\\checkpoints\\80"  # 假设你想加载第100轮的模型
 checkpoint = torch.load(checkpoint_path, map_location=config.device)
 
 model.load_state_dict(checkpoint['model_state_dict'])
@@ -60,8 +60,8 @@ optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
 loss = checkpoint['loss']
 model.eval()
-ct_image_path = 'D:/0-nebula/dataset/ixi_paried/test_t1/0201.png'
-original_image_path = 'D:/0-nebula/dataset/ixi_paried/test_t2/0201.png'
+ct_image_path = 'E:/nebula/test_t2/0201.png'
+original_image_path = 'E:/nebula/test_t1/0201.png'
 generated_mri = ct_to_mri_generation(model, ct_image_path, scheduler=scheduler,original_image_path=original_image_path)
 
 # generated_mri.save('generated_mri.png')
