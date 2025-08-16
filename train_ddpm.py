@@ -1,35 +1,39 @@
 import torch
 from tqdm import tqdm
-from cycle_ddpm import Configs, CycleDDPM
+from config import Configs
+from cycle_ddpm import CycleDDPM
 from torch.utils.data import DataLoader
 from load import PairedImageDataset
 from torch.optim.lr_scheduler import CosineAnnealingLR
+from plot import plot_loss
 
 config = Configs(
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
     dir_a_path="D:/0-nebula/dataset/ixi_paried/t1_30_resized",
     dir_b_path="D:/0-nebula/dataset/ixi_paried/t2_30_resized",
     image_size=256,
-    batch=1,
-    epochs=40,
-    lr=1e-4,
+    batch=2,  # 如果batch_size过小会导致梯度不稳定啊!
+    epochs=40, 
+    lr=1e-4,  # 提高学习率加快收敛
     clip=1.0,
-    num_train_timesteps=1000,
-    num_inference_timesteps=20,
-    beta_start=0.0001,
-    beta_end=0.005,
+    num_train_timesteps=500,
+    num_inference_timesteps=20,  # 增加推理步数提高生成质量
+    beta_start=0.0001,  # 降低beta起始值
+    beta_end=0.005,  # 调整beta结束值
 )
 
 if __name__ == "__main__":
     model = CycleDDPM(config).to(config.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
     scheduler_lr = CosineAnnealingLR(optimizer, T_max=config.epochs)
-
     paired_dataset = PairedImageDataset(dir_A=config.dir_a_path,dir_B=config.dir_b_path)
-
-
     data_loader = DataLoader(paired_dataset, batch_size=config.batch, shuffle=False)
-
+    loss_plot = {
+        "loss": [],
+        "loss_A": [],
+        "loss_B": [],
+        "cycle_loss": []
+    }
     loss = {}
     for epoch in range(config.epochs):
         total_steps = len(data_loader)
@@ -46,7 +50,7 @@ if __name__ == "__main__":
             real_A = batch_A.to(config.device)  # CT图像
             real_B = batch_B.to(config.device)  # MRI图像
             if epoch >= config.epochs * 3 // 4:
-                loss = model.compute_loss(real_A, real_B,1,epoch,config.epochs)
+                loss = model.compute_loss(real_A, real_B,0.2,epoch,config.epochs)
             else:
                 loss = model.compute_loss(real_A, real_B,0,epoch)
             loss['loss'].backward()
@@ -66,6 +70,10 @@ if __name__ == "__main__":
                 "LR": f"{optimizer.param_groups[0]['lr']:.2e}"
             }
             progress_bar.set_postfix(logs)
+        loss_plot["loss"].append(avg_loss / count)
+        loss_plot["loss_A"].append(avg_a_losss / count)
+        loss_plot["loss_B"].append(avg_b_losss / count)
+        loss_plot["cycle_loss"].append(avg_cycle_loss / count)
         scheduler_lr.step()
 
     # 保存模型
@@ -75,3 +83,4 @@ if __name__ == "__main__":
             'loss': loss,
         }, r"D:/0-nebula/dataset/checkpoints/" + str(config.epochs))
 
+    plot_loss(loss_plot)

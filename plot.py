@@ -8,41 +8,6 @@ import math
 import torch
 import os
 
-class Plotter:
-    def __init__(self, images:torch.Tensor, title: str,save_dir: Optional[str | None] = None) -> None:
-        self.images = images
-        self.title = title
-        self.save_dir = save_dir
-    
-    def plot(self):
-        d = self.images.dim()
-        print(self.images.shape)
-        if d == 4:
-            i = self.images.shape[0]
-            images = self.images.split(1,dim=0)
-        else:
-            images = [self.images]
-        if len(images) == 1:
-            rows = 1
-            cols = 1
-        else:
-            rows = (len(images)+1) // 2
-            cols = 2
-        fig, axes = pyplot.subplots(rows, cols, 
-                                figsize=(cols * 4, rows * 4),  # 每个子图4英寸
-                                squeeze=False)
-        for i, image in enumerate(images):
-            # print(image.squeeze(0).shape)
-            img = image.squeeze(0).detach().cpu().numpy().transpose(1, 2, 0)
-            axes[i // cols, i % cols].imshow(img,cmap='gray')
-            axes[i // cols, i % cols].set_title(f"image {i},length:{len(images)}")
-            axes[i // cols, i % cols].axis('off')
-        fig.suptitle(self.title)
-        if self.save_dir is not None:
-            os.makedirs(self.save_dir, exist_ok=True)  # 确保目录存在
-            pyplot.savefig(os.path.join(self.save_dir, self.title + ".png"))
-        pyplot.show()
-
 
 def disply_images(images: torch.Tensor , save_dir: Optional[str] = None ,row_num: int = 2, title: Optional[str] = None)->None:
     """画出图像，images的维度是[num,c,w,h],图片在第一维拼接"""
@@ -58,71 +23,41 @@ def disply_images(images: torch.Tensor , save_dir: Optional[str] = None ,row_num
     else:
         plt.show()
     plt.close()  # 添加这一行来关闭图形
-def plot_images(
-        images: 'torch.Tensor',
-        titles: Optional[List[str]] = None,
-        fig_titles: Optional[str] = None,
-        save_title: Optional[str] = None,
-        save_dir: Optional[str] = None,
-        cols: int = 4):
+def plot_loss(loss_plot:dict[str,list]):
+    # 根据loss_plot列表画出损失曲线图
+    epochs = list(range(1, len(loss_plot['loss']) + 1))
+    total_losses = loss_plot["loss"]
+    a_losses = loss_plot["loss_A"]
+    b_losses = loss_plot["loss_B"]
+    cycle_losses = loss_plot["cycle_loss"]
+    fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+    fig.suptitle("Training Loss Curves", fontsize=16)
+    # 绘制总损失
+    axes[0, 0].plot(epochs, total_losses, 'b-', linewidth=2)
+    axes[0, 0].set_title('Total Loss')
+    axes[0, 0].set_xlabel('Epoch')
+    axes[0, 0].set_ylabel('Loss')
+    axes[0, 0].grid(True, alpha=0.3)
 
-    _images = images
-    b, c, h, w = _images.shape
+    # 绘制Loss A
+    axes[1, 0].plot(epochs, a_losses, 'r-', linewidth=2)
+    axes[1, 0].set_title('Loss A')
+    axes[1, 0].set_xlabel('Epoch')
+    axes[1, 0].set_ylabel('Loss')
+    axes[1, 0].grid(True, alpha=0.3)
+    # 绘制Loss B
+    axes[1, 1].plot(epochs, b_losses, 'g-', linewidth=2)
+    axes[1, 1].set_title('Loss B')
+    axes[1, 1].set_xlabel('Epoch')
+    axes[1, 1].set_ylabel('Loss')
+    axes[1, 1].grid(True, alpha=0.3)
 
-    # 当只有一个通道时，将一个通道复制为3个
-    if c == 1:
-        _images = torch.repeat_interleave(_images, 3, dim=1)
-    if c > 3:
-        _images = _images[:, :3, :, :]
-
-    # 计算行列数
-    COLS = cols
-    ROWS = int(math.ceil(b / COLS))
-
-    # 将图像数据转为 numpy 并调整维度
-    if torch.is_tensor(_images):
-        image_array = _images.detach().cpu().numpy()
-    else:
-        image_array = _images  # 防止输入不是tensor时出错
-
-    _image_array = numpy.transpose(image_array, [0, 2, 3, 1])
-
-    fig, axes = pyplot.subplots(ROWS, COLS, figsize=(COLS, ROWS))
-    pyplot.subplots_adjust(wspace=0.05, hspace=0.05)
-
-    if fig_titles is not None:
-        fig.suptitle(fig_titles, fontsize=10)
-
-    if titles is None:
-        titles = ["" for _ in range(b)]
-
-    axes = axes.flatten()
-
-    assert len(titles) == b
-    assert b <= axes.size
-
-    for image, axis, title in zip(_image_array, axes, titles):
-        axis.imshow(image, cmap='gray')
-        axis.get_xaxis().set_visible(False)
-        axis.get_yaxis().set_visible(False)
-        axis.set_title(title, fontsize=8)
-
-    # 将 plot 保存为图像，还是直接显示
-    if save_dir is not None:
-        if not os.path.exists(save_dir):
-            os.mkdir(save_dir)
-
-        from datetime import datetime
-        _title = save_title if save_title is not None else "no title"
-        save_path = os.path.join(save_dir, _title + "_" + datetime.now().strftime(r"%m_%d %H_%M_%S") + ".png")
-        pyplot.savefig(save_path, bbox_inches='tight', dpi=300)
-    else:
-        pyplot.show()
-
-
-def plot_arrays(x: 'torch.Tensor', ys: 'torch.Tensor'):
-    _, axes = pyplot.subplots(1, 1)
-    for y in ys:
-        axes.plot(x.cpu().numpy(), y.cpu().numpy(), markersize=3)
-
-    pyplot.show()
+    # 绘制Cycle Loss
+    axes[0, 1].plot(epochs, cycle_losses, 'm-', linewidth=2)
+    axes[0, 1].set_title('Cycle Loss')
+    axes[0, 1].set_xlabel('Epoch')
+    axes[0, 1].set_ylabel('Loss')
+    axes[0, 1].grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.savefig('examples/training_loss_subplots.png', dpi=300, bbox_inches='tight')
+    plt.show()

@@ -1,11 +1,14 @@
+from abc import ABC, abstractmethod
+from typing import override
 import torch
 from config import Configs
 import numpy
 
-class Scheduler:
+class Scheduler(ABC):
     """基础的diffusion model 过程"""
     def __init__(self, config:Configs) -> None:
-        self.config = config
+
+        self.config:Configs = config
 
         # 设置训练和推理的步数
         self.num_train_timesteps: int = self.config.num_train_timesteps
@@ -65,40 +68,45 @@ class Scheduler:
         Δt = num_train / num_inf
         '''
         return timestep - self.num_train_timesteps // self.num_inference_steps
-
-    def step(self, noise_pred: torch.Tensor, timestep: torch.Tensor, noisy_image: torch.Tensor):
-        ...
+        
+    @abstractmethod
+    def step(self, noise_pred: torch.Tensor, timestep: torch.Tensor, noisy_image: torch.Tensor) -> torch.Tensor:
+        """抽象方法，子类必须实现"""
+        pass
 
 class DDPMScheduler(Scheduler):
     def __init__(self, config:Configs) -> None:
         super().__init__(config)
 
-    def step(self, noise_pred: torch.Tensor, timestep: torch.Tensor, noisy_image: torch.Tensor, is_inference: bool = False):
+
+    @override
+    def step(self, noise_pred: torch.Tensor, timestep: torch.Tensor, noisy_image: torch.Tensor, is_inference: bool = False) -> torch.Tensor:
         # 计算前一时刻的时间步
         prev_t = self.prev_timestep(timestep)
 
         alpha_bar_at_t = self.alphas_cumprod[timestep] #ᾱt
-        # alpha_bar_at_prev_t = self.alphas_cumprod[prev_t] if prev_t >= 0 else torch.tensor(1.0) 
-         # 对每个时间步单独处理边界情况
+        # 对每个时间步单独处理边界情况
         alpha_bar_at_prev_t = torch.where(prev_t >= 0, 
                                       self.alphas_cumprod[prev_t], 
                                       torch.tensor(1.0, device=self.config.device))#ᾱ(t-1)
+        
+        # 扩展维度以匹配图像张量
+        while len(alpha_bar_at_t.shape) < len(noisy_image.shape):
+            alpha_bar_at_t = alpha_bar_at_t.unsqueeze(-1)
+        while len(alpha_bar_at_prev_t.shape) < len(noisy_image.shape):
+            alpha_bar_at_prev_t = alpha_bar_at_prev_t.unsqueeze(-1)
+            
         beta_bar_at_t = 1 - alpha_bar_at_t # 1-ᾱt
         beta_bar_at_prev_t = 1 - alpha_bar_at_prev_t # 1-ᾱ(t-1)
 
         current_alpha_t = alpha_bar_at_t / alpha_bar_at_prev_t # ᾱt/ᾱ(t-1)
         current_beta_t = 1 - current_alpha_t # 1-ᾱt/ᾱ(t-1)
 
-        # 根据噪声预测 x0 , 去噪后的图像为denoised_image
-        # x_0 = ( x_t - √1-α_bar_t ε ) / √α_bar_t
-        # x_t = √α_bar_t x_0 + √1-α_bar_t ε
+        # 根据噪声预测 x0
         denoised_image = (noisy_image - torch.sqrt(beta_bar_at_t) * noise_pred) / torch.sqrt(alpha_bar_at_t)
-
-        # 将图像范围限制在 [-1, 1]
         denoised_image = denoised_image.clamp(-self.config.clip, self.config.clip)
-
-        # 根据公式计算均值 ~μ，
-        # 这里也可以根据 μ=1/√α_t (x_t - (1-α_t)/√1-α_bar_t ε_t) 得到
+        
+        # 计算前一步的均值
         pred_original_sample_coeff = (torch.sqrt(alpha_bar_at_prev_t) * current_beta_t) / beta_bar_at_t
         current_sample_coeff = torch.sqrt(current_alpha_t) * beta_bar_at_prev_t / beta_bar_at_t
         pred_prev_image = pred_original_sample_coeff * denoised_image + current_sample_coeff * noisy_image
@@ -106,7 +114,7 @@ class DDPMScheduler(Scheduler):
         # 只在训练时添加噪声，推理时不添加
         variance = 0
         if not is_inference and timestep > 0:
-            z = torch.randn(noise_pred.shape).to(device=self.config.device)
+            z = torch.randn_like(noise_pred)
             variance = (1 - alpha_bar_at_prev_t) / (1 - alpha_bar_at_t) * current_beta_t
             variance = torch.clamp(variance, min=1e-20)
             variance = torch.sqrt(variance) * z

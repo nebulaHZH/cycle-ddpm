@@ -18,17 +18,13 @@ class PairedImageDataset(Dataset):
         
         self.transform = v2.Compose([
             v2.Resize((self.image_size, self.image_size),InterpolationMode.BILINEAR),
-            v2.PILToTensor(),
-            v2.ConvertImageDtype(torch.float32),
-            v2.Normalize([127.5],[127.5])
+            v2.ToTensor(),
+            v2.Normalize([0.5], [0.5])  # 映射到 [-1, 1] 范围
         ])
         # 获取并排序文件名，确保配对
         files_A = sorted([f for f in os.listdir(dir_A) if f.endswith('.png')])
         files_B = sorted([f for f in os.listdir(dir_B) if f.endswith('.png')])
-        
-        # for i in range(len(files_A)):
-        #     if files_A[i] != files_B[i]:
-        #         raise ValueError(f"文件名不匹配：{files_A[i]} != {files_B[i]}")
+
         # 确保两个目录有相同的文件
         assert len(files_A) == len(files_B), "目录A和B的文件数量不匹配"
         assert files_A == files_B, "文件名不匹配"
@@ -45,15 +41,7 @@ class PairedImageDataset(Dataset):
         img_A = Image.open(os.path.join(self.dir_A, filename)).convert('L')
         img_B = Image.open(os.path.join(self.dir_B, filename)).convert('L')
 
-
-        # 预处理
-        img_A = img_A.resize((self.image_size, self.image_size))
-        img_B = img_B.resize((self.image_size, self.image_size))
-        
-
         image_A:torch.Tensor = self.transform(img_A)
         image_B:torch.Tensor = self.transform(img_B)
 
         return image_A, image_B
-
-

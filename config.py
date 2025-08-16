@@ -20,7 +20,7 @@ class Configs:
                  current_epoch: int = 0,
                  input_channel: int = 1,
                  output_channel: int = 1,
-                 layers: int = 2,
+                 layers: int = 4,
                  time_step: int = 1000
         ):
         self.dir_a_path = dir_a_path # CT数据集路径
