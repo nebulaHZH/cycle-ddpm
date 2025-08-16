@@ -5,7 +5,6 @@ from typing import Optional, Tuple
 from torch import nn, Tensor
 from config import Configs
 from diffusion_unet import DFUNet
-from plot import disply_images
 from scheduler import DDPMScheduler
 
 

@@ -50,7 +50,7 @@ config = train_ddpm.config
 model = CycleDDPM(config).to(config.device)
 scheduler = DDPMScheduler(config)
 
-checkpoint_path = r"E:\\nebula\\checkpoints\\80"  # 假设你想加载第100轮的模型
+checkpoint_path = r"E:\\nebula\\checkpoints\\100"  # 假设你想加载第100轮的模型
 checkpoint = torch.load(checkpoint_path, map_location=config.device)
 
 model.load_state_dict(checkpoint['model_state_dict'])
@@ -60,8 +60,8 @@ optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
 loss = checkpoint['loss']
 model.eval()
-ct_image_path = 'E:/nebula/test_t2/0201.png'
-original_image_path = 'E:/nebula/test_t1/0201.png'
+ct_image_path = 'E:/nebula/test_t1/0201.png'
+original_image_path = 'E:/nebula/test_t2/0201.png'
 generated_mri = ct_to_mri_generation(model, ct_image_path, scheduler=scheduler,original_image_path=original_image_path)
 
 # generated_mri.save('generated_mri.png')
