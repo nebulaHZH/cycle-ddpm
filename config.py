@@ -1,4 +1,4 @@
-from typing import NamedTuple
+
 
 import torch
 
@@ -21,7 +21,9 @@ class Configs:
                  input_channel: int = 1,
                  output_channel: int = 1,
                  layers: int = 4,
-                 time_step: int = 1000
+                 time_step: int = 1000,
+                 lambda_cycle:float=0.1,
+                 lambda_gray:float= 1
         ):
         self.dir_a_path = dir_a_path # CT数据集路径
         self.dir_b_path = dir_b_path # MR数据集路径
@@ -41,3 +43,5 @@ class Configs:
         self.output_channel = output_channel # 输出通道数
         self.layers = layers # 层数
         self.time_step = time_step # 时间步
+        self.lambda_cycle = lambda_cycle # 循环损失权重
+        self.lambda_gray = lambda_gray # 灰度损失权重

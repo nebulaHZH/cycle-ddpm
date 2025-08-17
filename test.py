@@ -1,5 +1,5 @@
 import train_ddpm
-import torchvision.transforms as transforms
+from torchvision.transforms import v2
 import torch
 from cycle_ddpm import CycleDDPM
 import torch.nn.functional as F
@@ -12,10 +12,10 @@ def ct_to_mri_generation(model:CycleDDPM, ct_image_path:str, scheduler:DDPMSched
     """使用训练好的CycleDDPM模型将CT图像转换为MRI图像"""
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     # 使用与训练时相同的变换
-    transform = transforms.Compose([
-        transforms.Resize((256, 256), interpolation=transforms.InterpolationMode.BILINEAR),
-        transforms.ToTensor(),
-        transforms.Normalize([0.5], [0.5])  # 与训练时保持一致
+    transform = v2.Compose([
+        v2.Resize((256, 256), interpolation=transforms.InterpolationMode.BILINEAR),
+        v2.ToTensor(),
+        v2.Normalize([0.5], [0.5])  # 与训练时保持一致
     ])
     # 加载并预处理CT图像
     ct_image = Image.open(ct_image_path).convert('L')  # 确保是灰度图

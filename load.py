@@ -34,7 +34,7 @@ class PairedImageDataset(Dataset):
     def __len__(self):
         return len(self.filenames)
     
-    def __getitem__(self, idx) ->Tuple[torch.Tensor,torch.Tensor]:
+    def __getitem__(self, idx) ->tuple[torch.Tensor,torch.Tensor]:
         filename = self.filenames[idx]
         
         # 加载配对图像

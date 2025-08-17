@@ -56,7 +56,7 @@ class CycleDDPM(nn.Module):
         使用 梯度检查点（torch.utils.checkpoint）在每个时间步节省显存，只在需要的时候重新计算前向。配合 混合精度训练（amp.autocast）减少显存开销。
         """
         x = torch.randn_like(mri_image).requires_grad_(True)
-        timesteps = self.scheduler.set_timesteps()
+        timesteps = self.scheduler.inf_timesteps
         for t in timesteps:
             # 使用checkpoint并正确处理返回值类型
             predicted_noise = cp.checkpoint( # pyright: ignore[reportUnknownMemberType, reportUnknownVariableType]
@@ -85,6 +85,7 @@ class CycleDDPM(nn.Module):
     def gray_scale_consistency_loss(self, generated_img:Tensor, target_img:Tensor):
         """
         计算灰度分布一致性损失
+            通过计算生成图像和目标图之间的均值和标准差来计算损失
         """
         # 计算图像的均值和标准差
         gen_mean = torch.mean(input=generated_img, dim=[2, 3], keepdim=True)
@@ -98,36 +99,30 @@ class CycleDDPM(nn.Module):
         std_loss = F.mse_loss(gen_std, target_std)
 
         return mean_loss + std_loss
-    def cycle_consistency_loss(self, x_A: Tensor, x_B: Tensor,lambda_gray: float = 1) -> Tensor:
+    def cycle_and_gray_loss(self, x_A: Tensor, x_B: Tensor) -> tuple[Tensor,Tensor]:
         """
-        计算循环一致性损失
+        计算循环一致性损失和灰度一致性损失
         """
-        # with torch.no_grad():
         # ct -> mri -> ct
-        x_B_pred = self.generate_mri_with_grad(x_A,is_inference=True)
-        x_A_reconstructed = self.generate_ct_with_grad(x_B_pred,is_inference=True)
+        x_B_pred = self.generate_mri_with_grad(x_A,is_inference=False)
+        x_A_reconstructed = self.generate_ct_with_grad(x_B_pred,is_inference=False)
 
         # 简化训练，只设置单项损失
         # # mri -> ct -> mri
         # x_A_pred = self.generate_ct_with_grad(x_B,is_inference=True)
         # x_B_reconstructed = self.generate_mri_with_grad(x_A_pred,is_inference=True)
-
-        # with torch.no_grad():
-        #     images = torch.cat([x_A, x_B_pred, x_A_reconstructed, x_B, x_A_pred, x_B_reconstructed], dim=0)
-        #     disply_images(images, row_num=3, title="cycle_loss_generate_display",save_dir='D:\\0-nebula\\dataset\\results')
-        
+     
         # 计算一致性损失
         cycle_loss_A = F.l1_loss(x_A, x_A_reconstructed)
         # cycle_loss_B = F.l1_loss(x_B, x_B_reconstructed)
-
+        # 计算灰度损失
         gray_loss_A = self.gray_scale_consistency_loss(x_B_pred, x_B)  # MRI生成的灰度一致性
         # gray_loss_B = self.gray_scale_consistency_loss(x_A_pred, x_A)  # CT生成的灰度一致性
 
-        # 计算灰度损失
         # return cycle_loss_A + cycle_loss_B + lambda_gray*(gray_loss_A + gray_loss_B)
-        return cycle_loss_A + lambda_gray*gray_loss_A
+        return cycle_loss_A,gray_loss_A
         
-    def compute_loss(self, x_A: Tensor, x_B: Tensor, lambda_cycle: float = 1,epoch:int = 200,epochs:int=400) -> dict[str, Tensor]:
+    def compute_loss(self, x_A: Tensor, x_B: Tensor, lambda_cycle: float = 1,lambda_gray:float = 0.1) -> dict[str, Tensor]:
         """计算损失,其中输入的x_A是ct图像，x_B是mri图像"""
         batch_size = x_A.shape[0]
         timesteps = self.scheduler.sample_timesteps(batch_size)
@@ -143,11 +138,6 @@ class CycleDDPM(nn.Module):
         loss_mri = F.mse_loss(noise_mri, predicted_noise_mri)
         loss_ct = F.mse_loss(noise_ct, predicted_noise_ct)
 
-        # 计算循环一致性损失 - 延迟引入，避免早期训练不稳定
-        if epoch >= epochs * 3 // 4: 
-            cycle_loss = self.cycle_consistency_loss(x_A, x_B,0)
-            total_loss = loss_mri + loss_ct + lambda_cycle * cycle_loss
-        else:
-            cycle_loss = torch.tensor(0.0, device=x_A.device)
-            total_loss = loss_mri + loss_ct
+        cycle_loss, gray_loss= self.cycle_and_gray_loss(x_A, x_B)
+        total_loss = loss_mri + loss_ct + lambda_cycle * cycle_loss + gray_loss*lambda_gray
         return {"loss": total_loss, "loss_A": loss_mri, "loss_B": loss_ct, "cycle_loss": cycle_loss}
